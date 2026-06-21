@@ -96,7 +96,10 @@ $adtSession = @{
     AppRevision = '01'
     AppSuccessExitCodes = @(0)
     AppRebootExitCodes = @(1641, 3010)
-    AppProcessesToClose = @('AcroRd32', 'Acrobat')
+    AppProcessesToClose = @(
+        @{ Name = 'AcroRd32'; Description = 'Adobe Acrobat Reader' },
+        @{ Name = 'Acrobat'; Description = 'Adobe Acrobat' }
+    )
     AppScriptVersion = '1.0.0'
     AppScriptDate = '2026-06-21'
     AppScriptAuthor = 'EUC Team'
@@ -130,12 +133,17 @@ function Install-ADTDeployment
     ##================================================
     $adtSession.InstallPhase = "Pre-$($adtSession.DeploymentType)"
 
-    ## Show Welcome Message, close processes if specified, and verify disk space.
-    $saiwParams = @{ CheckDiskSpace = $true }
+    ## Show Welcome Message, ask the user to close Acrobat if it is running, and only force closure after the countdown expires.
+    $saiwParams = @{
+        CheckDiskSpace = $true
+        PersistPrompt = $true
+        ForceCloseProcessesCountdown = 300
+        Title = 'Adobe Acrobat Upgrade'
+        Subtitle = 'Adobe Acrobat is being upgraded. Please save your work and close Adobe Acrobat within 5 minutes, or it will be closed automatically.'
+    }
     if ($adtSession.AppProcessesToClose.Count -gt 0)
     {
         $saiwParams.Add('CloseProcesses', $adtSession.AppProcessesToClose)
-        $saiwParams.Add('CloseProcessesCountdown', 60)
     }
     Show-ADTInstallationWelcome @saiwParams
 
@@ -190,10 +198,10 @@ function Uninstall-ADTDeployment
     ##================================================
     $adtSession.InstallPhase = "Pre-$($adtSession.DeploymentType)"
 
-    ## If there are processes to close, show Welcome Message with a 60 second countdown before automatically closing.
+    ## If Acrobat is running, prompt the user to close it and only force closure after the countdown expires.
     if ($adtSession.AppProcessesToClose.Count -gt 0)
     {
-        Show-ADTInstallationWelcome -CloseProcesses $adtSession.AppProcessesToClose -CloseProcessesCountdown 60
+        Show-ADTInstallationWelcome -CloseProcesses $adtSession.AppProcessesToClose -ForceCloseProcessesCountdown 300 -PersistPrompt -Title 'Adobe Acrobat Uninstall' -Subtitle 'Adobe Acrobat is being uninstalled. Please save your work and close Adobe Acrobat within 5 minutes, or it will be closed automatically.'
     }
 
     ## Show Progress Message (with the default message).
@@ -238,10 +246,10 @@ function Repair-ADTDeployment
     ##================================================
     $adtSession.InstallPhase = "Pre-$($adtSession.DeploymentType)"
 
-    ## If there are processes to close, show Welcome Message with a 60 second countdown before automatically closing.
+    ## If Acrobat is running, prompt the user to close it and only force closure after the countdown expires.
     if ($adtSession.AppProcessesToClose.Count -gt 0)
     {
-        Show-ADTInstallationWelcome -CloseProcesses $adtSession.AppProcessesToClose -CloseProcessesCountdown 60
+        Show-ADTInstallationWelcome -CloseProcesses $adtSession.AppProcessesToClose -ForceCloseProcessesCountdown 300 -PersistPrompt -Title 'Adobe Acrobat Repair' -Subtitle 'Adobe Acrobat is being repaired. Please save your work and close Adobe Acrobat within 5 minutes, or it will be closed automatically.'
     }
 
     ## Show Progress Message (with the default message).
