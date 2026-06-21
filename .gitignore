@@ -1,0 +1,2 @@
+# Ignore package payload folders in any PSADT app
+**/Files/
