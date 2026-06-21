@@ -159,7 +159,7 @@ function Install-ADTDeployment
         }
     }
 
-    Start-ADTMsiProcess -Action Install -FilePath $appFiles.Msi -Transforms $appFiles.Mst
+    Start-ADTMsiProcess -Action Install -FilePath $appFiles.Msi -Transforms $appFiles.Mst -AdditionalArgumentList 'EULA_ACCEPT=YES', 'SUPPRESS_APP_LAUNCH=YES'
     Start-ADTMsiProcess -Action Patch -FilePath $appFiles.Msp
 
     ## <Perform Installation tasks here>
@@ -170,8 +170,10 @@ function Install-ADTDeployment
     ##================================================
     $adtSession.InstallPhase = "Post-$($adtSession.DeploymentType)"
 
-    ## <Perform Post-Installation tasks here>
-
+    ## Suppress the first-run Distribution License Agreement that Adobe Reader shows on first launch.
+    ## The MST only suppresses the installer EULA; this registry key suppresses the application-level EULA for all users.
+    Set-ADTRegistryKey -Key 'HKLM:\SOFTWARE\Adobe\Adobe Acrobat\DC\AdobeViewer' -Name 'EULA' -Value 1 -Type DWord
+    Set-ADTRegistryKey -Key 'HKLM:\SOFTWARE\WOW6432Node\Adobe\Adobe Acrobat\DC\AdobeViewer' -Name 'EULA' -Value 1 -Type DWord
 
     ## No post-install prompt for managed deployment scenarios (SCCM/Intune).
 }
