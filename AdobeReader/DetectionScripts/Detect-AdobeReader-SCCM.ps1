@@ -48,20 +48,17 @@ function Get-InstalledAppVersion {
 try {
     $detected = Get-InstalledAppVersion -NamePattern $DisplayNamePattern
     if (!$detected) {
-        Write-Host "Not detected: no installed app matched pattern [$DisplayNamePattern]."
-        exit 1
+        exit 0
     }
 
     $requiredVersion = [version]$MinimumVersion
     if ($detected.ParsedVersion -ge $requiredVersion) {
-        Write-Host "Detected: $($detected.DisplayName) $($detected.DisplayVersion)"
+        Write-Output "Detected: $($detected.DisplayName) $($detected.DisplayVersion)"
         exit 0
     }
 
-    Write-Host "Not detected: installed version $($detected.DisplayVersion) is below required $MinimumVersion."
-    exit 1
+    exit 0
 }
 catch {
-    Write-Host "Detection failed: $($_.Exception.Message)"
-    exit 1
+    exit 0
 }
