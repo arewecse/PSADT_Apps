@@ -88,18 +88,18 @@ param
 # By setting the "AppName" property, Zero-Config MSI will be disabled.
 $adtSession = @{
     # App variables.
-    AppVendor = ''
-    AppName = ''
-    AppVersion = ''
-    AppArch = ''
+    AppVendor = 'Adobe'
+    AppName = 'Acrobat Pro'
+    AppVersion = '2026.001.21662'
+    AppArch = 'x64'
     AppLang = 'EN'
     AppRevision = '01'
     AppSuccessExitCodes = @(0)
     AppRebootExitCodes = @(1641, 3010)
-    AppProcessesToClose = @()  # Example: @('excel', @{ Name = 'winword'; Description = 'Microsoft Word' })
+    AppProcessesToClose = @('AcroRd32', 'Acrobat')
     AppScriptVersion = '1.0.0'
-    AppScriptDate = '2026-06-20'
-    AppScriptAuthor = '<author name>'
+    AppScriptDate = '2026-06-21'
+    AppScriptAuthor = 'EUC Team'
     RequireAdmin = $true
 
     # Install Titles (Only set here to override defaults set by the toolkit).
@@ -110,6 +110,12 @@ $adtSession = @{
     DeployAppScriptFriendlyName = $MyInvocation.MyCommand.Name
     DeployAppScriptParameters = $PSBoundParameters
     DeployAppScriptVersion = '4.1.8'
+}
+
+$appFiles = @{
+    Msi = Join-Path -Path $PSScriptRoot -ChildPath 'Files\AcroPro.msi'
+    Mst = Join-Path -Path $PSScriptRoot -ChildPath 'Files\CustomReaderMUI.mst'
+    Msp = Join-Path -Path $PSScriptRoot -ChildPath 'Files\AcroRdrDCx64Upd2600121662_MUI.msp'
 }
 
 function Install-ADTDeployment
@@ -124,16 +130,12 @@ function Install-ADTDeployment
     ##================================================
     $adtSession.InstallPhase = "Pre-$($adtSession.DeploymentType)"
 
-    ## Show Welcome Message, close processes if specified, allow up to 3 deferrals, verify there is enough disk space to complete the install, and persist the prompt.
-    $saiwParams = @{
-        AllowDefer = $true
-        DeferTimes = 3
-        CheckDiskSpace = $true
-        PersistPrompt = $true
-    }
+    ## Show Welcome Message, close processes if specified, and verify disk space.
+    $saiwParams = @{ CheckDiskSpace = $true }
     if ($adtSession.AppProcessesToClose.Count -gt 0)
     {
         $saiwParams.Add('CloseProcesses', $adtSession.AppProcessesToClose)
+        $saiwParams.Add('CloseProcessesCountdown', 60)
     }
     Show-ADTInstallationWelcome @saiwParams
 
@@ -148,20 +150,17 @@ function Install-ADTDeployment
     ##================================================
     $adtSession.InstallPhase = $adtSession.DeploymentType
 
-    ## Handle Zero-Config MSI installations.
-    if ($adtSession.UseDefaultMsi)
+    ## Use explicit installer references so behavior is consistent in SCCM and Intune.
+    foreach ($requiredFile in 'Msi', 'Mst', 'Msp')
     {
-        $ExecuteDefaultMSISplat = @{ Action = $adtSession.DeploymentType; FilePath = $adtSession.DefaultMsiFile }
-        if ($adtSession.DefaultMstFile)
+        if (!(Test-Path -LiteralPath $appFiles[$requiredFile] -PathType Leaf))
         {
-            $ExecuteDefaultMSISplat.Add('Transforms', $adtSession.DefaultMstFile)
-        }
-        Start-ADTMsiProcess @ExecuteDefaultMSISplat
-        if ($adtSession.DefaultMspFiles)
-        {
-            $adtSession.DefaultMspFiles | Start-ADTMsiProcess -Action Patch
+            throw "Required installer file is missing: $($appFiles[$requiredFile])"
         }
     }
+
+    Start-ADTMsiProcess -Action Install -FilePath $appFiles.Msi -Transforms $appFiles.Mst
+    Start-ADTMsiProcess -Action Patch -FilePath $appFiles.Msp
 
     ## <Perform Installation tasks here>
 
@@ -174,11 +173,7 @@ function Install-ADTDeployment
     ## <Perform Post-Installation tasks here>
 
 
-    ## Display a message at the end of the install.
-    if (!$adtSession.UseDefaultMsi)
-    {
-        Show-ADTInstallationPrompt -Message 'You can customize text to appear at the end of an install or remove it completely for unattended installations.' -ButtonRightText 'OK' -NoWait
-    }
+    ## No post-install prompt for managed deployment scenarios (SCCM/Intune).
 }
 
 function Uninstall-ADTDeployment
@@ -210,16 +205,13 @@ function Uninstall-ADTDeployment
     ##================================================
     $adtSession.InstallPhase = $adtSession.DeploymentType
 
-    ## Handle Zero-Config MSI uninstallations.
-    if ($adtSession.UseDefaultMsi)
+    ## Use the same package MSI for uninstall to maintain consistent behavior.
+    if (!(Test-Path -LiteralPath $appFiles.Msi -PathType Leaf))
     {
-        $ExecuteDefaultMSISplat = @{ Action = $adtSession.DeploymentType; FilePath = $adtSession.DefaultMsiFile }
-        if ($adtSession.DefaultMstFile)
-        {
-            $ExecuteDefaultMSISplat.Add('Transforms', $adtSession.DefaultMstFile)
-        }
-        Start-ADTMsiProcess @ExecuteDefaultMSISplat
+        throw "Required installer file is missing: $($appFiles.Msi)"
     }
+
+    Start-ADTMsiProcess -Action Uninstall -FilePath $appFiles.Msi
 
     ## <Perform Uninstallation tasks here>
 
@@ -261,16 +253,13 @@ function Repair-ADTDeployment
     ##================================================
     $adtSession.InstallPhase = $adtSession.DeploymentType
 
-    ## Handle Zero-Config MSI repairs.
-    if ($adtSession.UseDefaultMsi)
+    ## Repair from the same MSI package to align with enterprise deployment engines.
+    if (!(Test-Path -LiteralPath $appFiles.Msi -PathType Leaf))
     {
-        $ExecuteDefaultMSISplat = @{ Action = $adtSession.DeploymentType; FilePath = $adtSession.DefaultMsiFile }
-        if ($adtSession.DefaultMstFile)
-        {
-            $ExecuteDefaultMSISplat.Add('Transforms', $adtSession.DefaultMstFile)
-        }
-        Start-ADTMsiProcess @ExecuteDefaultMSISplat
+        throw "Required installer file is missing: $($appFiles.Msi)"
     }
+
+    Start-ADTMsiProcess -Action Repair -FilePath $appFiles.Msi
 
     ## <Perform Repair tasks here>
 
