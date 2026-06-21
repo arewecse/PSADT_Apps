@@ -159,7 +159,7 @@ function Install-ADTDeployment
         }
     }
 
-    Start-ADTMsiProcess -Action Install -FilePath $appFiles.Msi -Transforms $appFiles.Mst -AdditionalArgumentList 'EULA_ACCEPT=YES', 'SUPPRESS_APP_LAUNCH=YES'
+    Start-ADTMsiProcess -Action Install -FilePath $appFiles.Msi -Transforms $appFiles.Mst -AdditionalArgumentList 'EULA_ACCEPT=YES', 'SUPPRESS_APP_LAUNCH=YES', 'REMOVE_PREVIOUS=YES'
     Start-ADTMsiProcess -Action Patch -FilePath $appFiles.Msp
 
     ## <Perform Installation tasks here>
