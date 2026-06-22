@@ -38,7 +38,7 @@
         CachePath = '$envProgramData\SoftwareCache'
 
         # The name to show by default for dialog subtitles, balloon notifications, etc.
-        CompanyName = 'PSAppDeployToolkit'
+        CompanyName = 'Stratum Reservoir'
 
         # Specify if the log files should be bundled together in a compressed zip file.
         CompressLogs = $false
