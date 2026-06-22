@@ -90,7 +90,7 @@ $adtSession = @{
     # App variables.
     AppVendor = 'Adobe'
     AppName = 'Acrobat Pro'
-    AppVersion = '2026.001.21662'
+    AppVersion = '26.001.21662'
     AppArch = 'x64'
     AppLang = 'EN'
     AppRevision = '01'
@@ -138,6 +138,7 @@ function Install-ADTDeployment
         CheckDiskSpace = $true
         PersistPrompt = $true
         ForceCloseProcessesCountdown = 300
+        BlockExecution = $true
         Title = 'Adobe Acrobat Upgrade'
         Subtitle = 'Adobe Acrobat is being upgraded. Please save your work and close Adobe Acrobat within 5 minutes, or it will be closed automatically.'
     }
@@ -198,11 +199,20 @@ function Uninstall-ADTDeployment
     ##================================================
     $adtSession.InstallPhase = "Pre-$($adtSession.DeploymentType)"
 
-    ## If Acrobat is running, prompt the user to close it and only force closure after the countdown expires.
+    ## Show Welcome Message, ask the user to close Acrobat if it is running, and only force closure after the countdown expires.
+    $saiwParams = @{
+        CheckDiskSpace = $true
+        PersistPrompt = $true
+        ForceCloseProcessesCountdown = 300
+        BlockExecution = $true
+        Title = 'Adobe Acrobat Uninstall'
+        Subtitle = 'Adobe Acrobat is being uninstalled. Please save your work and close Adobe Acrobat within 5 minutes, or it will be closed automatically.'
+    }
     if ($adtSession.AppProcessesToClose.Count -gt 0)
     {
-        Show-ADTInstallationWelcome -CloseProcesses $adtSession.AppProcessesToClose -ForceCloseProcessesCountdown 300 -PersistPrompt -Title 'Adobe Acrobat Uninstall' -Subtitle 'Adobe Acrobat is being uninstalled. Please save your work and close Adobe Acrobat within 5 minutes, or it will be closed automatically.'
+        $saiwParams.Add('CloseProcesses', $adtSession.AppProcessesToClose)
     }
+    Show-ADTInstallationWelcome @saiwParams
 
     ## Show Progress Message (with the default message).
     Show-ADTInstallationProgress
@@ -246,11 +256,20 @@ function Repair-ADTDeployment
     ##================================================
     $adtSession.InstallPhase = "Pre-$($adtSession.DeploymentType)"
 
-    ## If Acrobat is running, prompt the user to close it and only force closure after the countdown expires.
+    ## Show Welcome Message, ask the user to close Acrobat if it is running, and only force closure after the countdown expires.
+    $saiwParams = @{
+        CheckDiskSpace = $true
+        PersistPrompt = $true
+        ForceCloseProcessesCountdown = 300
+        BlockExecution = $true
+        Title = 'Adobe Acrobat Repair'
+        Subtitle = 'Adobe Acrobat is being repaired. Please save your work and close Adobe Acrobat within 5 minutes, or it will be closed automatically.'
+    }
     if ($adtSession.AppProcessesToClose.Count -gt 0)
     {
-        Show-ADTInstallationWelcome -CloseProcesses $adtSession.AppProcessesToClose -ForceCloseProcessesCountdown 300 -PersistPrompt -Title 'Adobe Acrobat Repair' -Subtitle 'Adobe Acrobat is being repaired. Please save your work and close Adobe Acrobat within 5 minutes, or it will be closed automatically.'
+        $saiwParams.Add('CloseProcesses', $adtSession.AppProcessesToClose)
     }
+    Show-ADTInstallationWelcome @saiwParams
 
     ## Show Progress Message (with the default message).
     Show-ADTInstallationProgress
