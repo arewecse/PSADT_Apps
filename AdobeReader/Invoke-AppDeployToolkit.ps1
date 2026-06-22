@@ -89,7 +89,7 @@ param
 $adtSession = @{
     # App variables.
     AppVendor = 'Adobe'
-    AppName = 'Acrobat Pro'
+    AppName = 'Acrobat Reader'
     AppVersion = '26.001.21662'
     AppArch = 'x64'
     AppLang = 'EN'
@@ -98,7 +98,10 @@ $adtSession = @{
     AppRebootExitCodes = @(1641, 3010)
     AppProcessesToClose = @(
         @{ Name = 'AcroRd32'; Description = 'Adobe Acrobat Reader' },
+        @{ Name = 'AcroRd64'; Description = 'Adobe Acrobat Reader 64-bit' },
+        @{ Name = 'AcroCEF'; Description = 'Adobe Acrobat CEF Helper' },
         @{ Name = 'Acrobat'; Description = 'Adobe Acrobat' }
+        @{ Name = 'AdobeCollabSync'; Description = 'Adobe Collaboration Sync' }
     )
     AppScriptVersion = '1.0.0'
     AppScriptDate = '2026-06-21'
@@ -106,8 +109,8 @@ $adtSession = @{
     RequireAdmin = $true
 
     # Install Titles (Only set here to override defaults set by the toolkit).
-    InstallName = ''
-    InstallTitle = ''
+    InstallName = 'Adobe Acrobat Reader'
+    InstallTitle = 'Adobe Acrobat Reader Installation'
 
     # Script variables.
     DeployAppScriptFriendlyName = $MyInvocation.MyCommand.Name
@@ -137,14 +140,14 @@ function Install-ADTDeployment
     $saiwParams = @{
         CheckDiskSpace = $true
         PersistPrompt = $true
-        ForceCloseProcessesCountdown = 300
-        BlockExecution = $true
         Title = 'Adobe Acrobat Upgrade'
         Subtitle = 'Adobe Acrobat is being upgraded. Please save your work and close Adobe Acrobat within 5 minutes, or it will be closed automatically.'
     }
     if ($adtSession.AppProcessesToClose.Count -gt 0)
     {
         $saiwParams.Add('CloseProcesses', $adtSession.AppProcessesToClose)
+        $saiwParams.Add('ForceCloseProcessesCountdown', 300)
+        $saiwParams.Add('BlockExecution', $true)
     }
     Show-ADTInstallationWelcome @saiwParams
 
@@ -203,14 +206,14 @@ function Uninstall-ADTDeployment
     $saiwParams = @{
         CheckDiskSpace = $true
         PersistPrompt = $true
-        ForceCloseProcessesCountdown = 300
-        BlockExecution = $true
         Title = 'Adobe Acrobat Uninstall'
         Subtitle = 'Adobe Acrobat is being uninstalled. Please save your work and close Adobe Acrobat within 5 minutes, or it will be closed automatically.'
     }
     if ($adtSession.AppProcessesToClose.Count -gt 0)
     {
         $saiwParams.Add('CloseProcesses', $adtSession.AppProcessesToClose)
+        $saiwParams.Add('ForceCloseProcessesCountdown', 300)
+        $saiwParams.Add('BlockExecution', $true)
     }
     Show-ADTInstallationWelcome @saiwParams
 
@@ -260,14 +263,14 @@ function Repair-ADTDeployment
     $saiwParams = @{
         CheckDiskSpace = $true
         PersistPrompt = $true
-        ForceCloseProcessesCountdown = 300
-        BlockExecution = $true
         Title = 'Adobe Acrobat Repair'
         Subtitle = 'Adobe Acrobat is being repaired. Please save your work and close Adobe Acrobat within 5 minutes, or it will be closed automatically.'
     }
     if ($adtSession.AppProcessesToClose.Count -gt 0)
     {
         $saiwParams.Add('CloseProcesses', $adtSession.AppProcessesToClose)
+        $saiwParams.Add('ForceCloseProcessesCountdown', 300)
+        $saiwParams.Add('BlockExecution', $true)
     }
     Show-ADTInstallationWelcome @saiwParams
 
