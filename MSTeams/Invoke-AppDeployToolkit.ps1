@@ -219,17 +219,24 @@ function Install-NewTeamsMachineWide
         throw "Required installer file is missing: $($appFiles.Bootstrapper)"
     }
 
-    # Use offline install when the MSIX payload is staged in the package.
-    if (Test-Path -LiteralPath $appFiles.OfflineMsix -PathType Leaf)
+    # Prefer online provisioning to ensure the newest Teams build is installed.
+    try
     {
-        $arguments = "-p -o `"$($appFiles.OfflineMsix)`""
+        Start-ADTProcess -FilePath $appFiles.Bootstrapper -ArgumentList '-p' -WindowStyle Hidden -SuccessExitCodes 0, 3010
+        return
     }
-    else
+    catch
     {
-        $arguments = '-p'
-    }
+        # Fall back to offline MSIX only when online provisioning fails.
+        if (!(Test-Path -LiteralPath $appFiles.OfflineMsix -PathType Leaf))
+        {
+            throw
+        }
 
-    Start-ADTProcess -FilePath $appFiles.Bootstrapper -ArgumentList $arguments -WindowStyle Hidden -SuccessExitCodes 0, 3010
+        Write-ADTLogEntry -Message "Online Teams provisioning failed. Falling back to offline MSIX at [$($appFiles.OfflineMsix)]. Error: $($_.Exception.Message)" -Severity 2
+        $arguments = "-p -o `"$($appFiles.OfflineMsix)`""
+        Start-ADTProcess -FilePath $appFiles.Bootstrapper -ArgumentList $arguments -WindowStyle Hidden -SuccessExitCodes 0, 3010
+    }
 }
 
 function Uninstall-NewTeamsMachineWide

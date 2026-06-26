@@ -1,20 +1,40 @@
 $ErrorActionPreference = 'Stop'
+$ProgressPreference = 'SilentlyContinue'
 
 # Intune Win32 app detection rule (custom script):
 #   exit 0 + STDOUT  -> detected (compliant)
 #   exit 1, no STDOUT -> not detected (will (re)install)
 
-try {
-    $provisioned = Get-AppxProvisionedPackage -Online | Where-Object { $_.DisplayName -eq 'MSTeams' }
+function Get-MSTeamsDetection {
+    [CmdletBinding()]
+    param()
+
+    $provisioned = Get-AppxProvisionedPackage -Online | Where-Object { $_.DisplayName -eq 'MSTeams' } | Select-Object -First 1
     if ($provisioned) {
-        Write-Output "Detected: Provisioned package MSTeams ($($provisioned.PackageName))"
-        exit 0
+        return [pscustomobject]@{
+            Detected = $true
+            Detail   = "Provisioned package MSTeams ($($provisioned.PackageName))"
+        }
     }
 
-    $installedAllUsers = Get-AppxPackage -AllUsers -Name 'MSTeams' -ErrorAction SilentlyContinue
+    $installedAllUsers = Get-AppxPackage -AllUsers -Name 'MSTeams' -ErrorAction SilentlyContinue | Select-Object -First 1
     if ($installedAllUsers) {
-        $version = ($installedAllUsers | Select-Object -First 1).Version
-        Write-Output "Detected: AppX package MSTeams ($version)"
+        return [pscustomobject]@{
+            Detected = $true
+            Detail   = "AppX package MSTeams ($($installedAllUsers.Version))"
+        }
+    }
+
+    return [pscustomobject]@{
+        Detected = $false
+        Detail   = $null
+    }
+}
+
+try {
+    $result = Get-MSTeamsDetection
+    if ($result.Detected) {
+        Write-Output "Detected: $($result.Detail)"
         exit 0
     }
 
