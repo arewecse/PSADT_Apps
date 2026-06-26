@@ -163,8 +163,9 @@ function Install-ADTDeployment
         throw "Required installer file is missing: $($appFiles.Setup)"
     }
 
-    ## Install Notepad++ silently. The NSIS installer upgrades any existing version in place.
-    Start-ADTProcess -FilePath $appFiles.Setup -ArgumentList '/S' -WindowStyle Hidden
+    ## Install Notepad++ silently. /noUpdater disables the built-in WinGUp auto-updater so
+    ## updates are controlled exclusively through SCCM.
+    Start-ADTProcess -FilePath $appFiles.Setup -ArgumentList '/S /noUpdater' -WindowStyle Hidden
 
     ## <Perform Installation tasks here>
 
@@ -173,6 +174,10 @@ function Install-ADTDeployment
     ## MARK: Post-Install
     ##================================================
     $adtSession.InstallPhase = "Post-$($adtSession.DeploymentType)"
+
+    ## Remove any existing WinGUp updater component from previous installations to ensure
+    ## all future updates are managed exclusively through SCCM.
+    Remove-Item -LiteralPath "$env:ProgramFiles\Notepad++\updater" -Recurse -Force -ErrorAction SilentlyContinue
 
     ## <Perform Post-Installation tasks here>
 
