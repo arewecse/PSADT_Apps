@@ -1,7 +1,6 @@
 param(
-    # Product release ID expected in the Click-to-Run configuration (matches configuration.xml <Product ID=...>).
-    [string]$ProductReleaseId = 'O365ProPlusEEANoTeamsRetail',
-    [string]$MinimumVersion = '16.0.20026.20166'
+    [string]$MinimumVersion = '16.0.20026.20166',
+    [bool]$EnforceMinimumVersion = $true
 )
 
 $ErrorActionPreference = 'Stop'
@@ -11,20 +10,49 @@ $ErrorActionPreference = 'Stop'
 #   no STDOUT       -> not detected
 # The exit code is ignored by SCCM, so this script always exits 0.
 
-try {
-    $configKey = 'HKLM:\SOFTWARE\Microsoft\Office\ClickToRun\Configuration'
-    if (!(Test-Path -LiteralPath $configKey)) {
-        exit 0
+function Get-ClickToRunConfiguration {
+    [CmdletBinding()]
+    param()
+
+    $subKey = 'SOFTWARE\Microsoft\Office\ClickToRun\Configuration'
+    $views = @(
+        [Microsoft.Win32.RegistryView]::Registry64,
+        [Microsoft.Win32.RegistryView]::Registry32
+    )
+
+    foreach ($view in $views) {
+        $baseKey = $null
+        $configKey = $null
+        try {
+            $baseKey = [Microsoft.Win32.RegistryKey]::OpenBaseKey([Microsoft.Win32.RegistryHive]::LocalMachine, $view)
+            $configKey = $baseKey.OpenSubKey($subKey)
+            if ($configKey) {
+                return [pscustomobject]@{
+                    VersionToReport   = [string]$configKey.GetValue('VersionToReport', $null)
+                }
+            }
+        }
+        finally {
+            if ($configKey) {
+                $configKey.Dispose()
+            }
+            if ($baseKey) {
+                $baseKey.Dispose()
+            }
+        }
     }
 
-    $config = Get-ItemProperty -LiteralPath $configKey -ErrorAction SilentlyContinue
+    return $null
+}
+
+try {
+    $config = Get-ClickToRunConfiguration
     if (!$config) {
         exit 0
     }
 
-    # Confirm the expected product is part of the installed Click-to-Run package.
-    $productReleaseIds = [string]$config.ProductReleaseIds
-    if ([string]::IsNullOrWhiteSpace($productReleaseIds) -or ($productReleaseIds -split ',') -notcontains $ProductReleaseId) {
+    if (-not $EnforceMinimumVersion) {
+        Write-Output 'Detected: Microsoft Office Click-to-Run'
         exit 0
     }
 
@@ -35,7 +63,7 @@ try {
     }
 
     if ($parsed -ge [version]$MinimumVersion) {
-        Write-Output "Detected: $ProductReleaseId $reportedVersion"
+        Write-Output "Detected: Microsoft Office Click-to-Run $reportedVersion"
     }
 
     exit 0
