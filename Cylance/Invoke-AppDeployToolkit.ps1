@@ -88,26 +88,23 @@ param
 # By setting the "AppName" property, Zero-Config MSI will be disabled.
 $adtSession = @{
     # App variables.
-    AppVendor = 'Microsoft'
-    AppName = 'Microsoft Teams (Machine-Wide)'
+    AppVendor = 'BlackBerry'
+    AppName = 'CylancePROTECT + CylanceOPTICS'
     AppVersion = '1.0.0'
     AppArch = 'x64'
     AppLang = 'EN'
     AppRevision = '01'
     AppSuccessExitCodes = @(0)
     AppRebootExitCodes = @(1641, 3010)
-    AppProcessesToClose = @(
-        @{ Name = 'Teams'; Description = 'Microsoft Teams (Classic)' },
-        @{ Name = 'ms-teams'; Description = 'Microsoft Teams (New)' }
-    )
+    AppProcessesToClose = @()
     AppScriptVersion = '1.0.0'
-    AppScriptDate = '2026-06-26'
+    AppScriptDate = '2026-06-27'
     AppScriptAuthor = 'EUC Team'
     RequireAdmin = $true
 
     # Install Titles (Only set here to override defaults set by the toolkit).
-    InstallName = 'Microsoft Teams (Machine-Wide)'
-    InstallTitle = 'Microsoft Teams Installation'
+    InstallName = 'CylancePROTECT + CylanceOPTICS'
+    InstallTitle = 'Cylance Agent Installation'
 
     # Script variables.
     DeployAppScriptFriendlyName = $MyInvocation.MyCommand.Name
@@ -116,140 +113,86 @@ $adtSession = @{
 }
 
 $appFiles = @{
-    # Teams bootstrapper executable and optional offline MSIX package.
-    Bootstrapper = Join-Path -Path $PSScriptRoot -ChildPath 'Files\teamsbootstrapper.exe'
-    OfflineMsix = Join-Path -Path $PSScriptRoot -ChildPath 'Files\MSTeams-x64.msix'
+    ProtectMsi = Join-Path -Path $PSScriptRoot -ChildPath 'Files\CylanceProtect_x64.msi'
+    OpticsMsi = Join-Path -Path $PSScriptRoot -ChildPath 'Files\CylanceOptics_x64.msi'
 }
 
-function Get-UserProfilePaths
+## Installation token supplied for CylancePROTECT registration.
+$cylanceInstallToken = 'MS1SoV8TYiU3gqcyKUH1IFLf'
+
+function Test-RequiredInstallerFiles
 {
     [CmdletBinding()]
     param()
 
-    $exclude = @('All Users', 'Default', 'Default User', 'defaultuser0', 'Public')
-    Get-ChildItem -Path "$env:SystemDrive\Users" -Directory -ErrorAction SilentlyContinue |
-        Where-Object { $_.Name -notin $exclude } |
-        Select-Object -ExpandProperty FullName
-}
-
-function Remove-ClassicTeamsPerUserInstallations
-{
-    [CmdletBinding()]
-    param()
-
-    foreach ($procName in @('Teams', 'ms-teams', 'Update'))
+    foreach ($requiredFile in @('ProtectMsi', 'OpticsMsi'))
     {
-        Get-Process -Name $procName -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
-    }
-
-    foreach ($profilePath in (Get-UserProfilePaths))
-    {
-        $teamsRoot = Join-Path -Path $profilePath -ChildPath 'AppData\Local\Microsoft\Teams'
-        $updateExe = Join-Path -Path $teamsRoot -ChildPath 'Update.exe'
-        if (Test-Path -LiteralPath $updateExe -PathType Leaf)
+        if (!(Test-Path -LiteralPath $appFiles[$requiredFile] -PathType Leaf))
         {
-            try
-            {
-                Start-ADTProcess -FilePath $updateExe -ArgumentList '--uninstall -s' -WindowStyle Hidden -SuccessExitCodes 0, 3010
-            }
-            catch
-            {
-                Write-ADTLogEntry -Message "Classic Teams uninstall invocation failed for profile [$profilePath]. Continuing. Error: $($_.Exception.Message)" -Severity 2
-            }
-        }
-
-        if (Test-Path -LiteralPath $teamsRoot -PathType Container)
-        {
-            try
-            {
-                Remove-Item -LiteralPath $teamsRoot -Recurse -Force -ErrorAction SilentlyContinue
-            }
-            catch
-            {
-                Write-ADTLogEntry -Message "Classic Teams cleanup failed for [$teamsRoot]. Continuing. Error: $($_.Exception.Message)" -Severity 2
-            }
+            throw "Required installer file is missing: $($appFiles[$requiredFile])"
         }
     }
 }
 
-function Get-UninstallRegistryEntries
+function Install-CylanceProtect
 {
     [CmdletBinding()]
     param()
 
-    $uninstallRoots = @(
-        'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\*',
-        'HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\*'
+    # Keep all known token properties to remain compatible across tenant packaging variants.
+    $tokenArguments = @(
+        "PIDKEY=$cylanceInstallToken",
+        "INSTALLTOKEN=$cylanceInstallToken",
+        "REGISTRATION_TOKEN=$cylanceInstallToken"
     )
 
-    foreach ($path in $uninstallRoots)
-    {
-        Get-ItemProperty -Path $path -ErrorAction SilentlyContinue
-    }
+    Start-ADTMsiProcess -Action Install -FilePath $appFiles.ProtectMsi -AdditionalArgumentList $tokenArguments
 }
 
-function Remove-ClassicTeamsMachineWideInstaller
+function Install-CylanceOptics
 {
     [CmdletBinding()]
     param()
 
-    $entries = Get-UninstallRegistryEntries | Where-Object {
-        $_.DisplayName -eq 'Teams Machine-Wide Installer'
-    }
-
-    foreach ($entry in $entries)
-    {
-        if ([string]::IsNullOrWhiteSpace($entry.PSChildName))
-        {
-            continue
-        }
-
-        Write-ADTLogEntry -Message "Uninstalling legacy Teams Machine-Wide Installer [$($entry.PSChildName)]."
-        Start-ADTProcess -FilePath "$env:WINDIR\System32\msiexec.exe" -ArgumentList "/x $($entry.PSChildName) /qn REBOOT=ReallySuppress" -WindowStyle Hidden -SuccessExitCodes 0, 1605, 1614, 3010
-    }
+    Start-ADTMsiProcess -Action Install -FilePath $appFiles.OpticsMsi
 }
 
-function Install-NewTeamsMachineWide
+function Uninstall-CylanceProtect
 {
     [CmdletBinding()]
     param()
 
-    if (!(Test-Path -LiteralPath $appFiles.Bootstrapper -PathType Leaf))
-    {
-        throw "Required installer file is missing: $($appFiles.Bootstrapper)"
-    }
-
-    # Prefer online provisioning to ensure the newest Teams build is installed.
-    try
-    {
-        Start-ADTProcess -FilePath $appFiles.Bootstrapper -ArgumentList '-p' -WindowStyle Hidden -SuccessExitCodes 0, 3010
-        return
-    }
-    catch
-    {
-        # Fall back to offline MSIX only when online provisioning fails.
-        if (!(Test-Path -LiteralPath $appFiles.OfflineMsix -PathType Leaf))
-        {
-            throw
-        }
-
-        Write-ADTLogEntry -Message "Online Teams provisioning failed. Falling back to offline MSIX at [$($appFiles.OfflineMsix)]. Error: $($_.Exception.Message)" -Severity 2
-        $arguments = "-p -o `"$($appFiles.OfflineMsix)`""
-        Start-ADTProcess -FilePath $appFiles.Bootstrapper -ArgumentList $arguments -WindowStyle Hidden -SuccessExitCodes 0, 3010
-    }
+    Start-ADTMsiProcess -Action Uninstall -FilePath $appFiles.ProtectMsi
 }
 
-function Uninstall-NewTeamsMachineWide
+function Uninstall-CylanceOptics
 {
     [CmdletBinding()]
     param()
 
-    if (Test-Path -LiteralPath $appFiles.Bootstrapper -PathType Leaf)
-    {
-        Start-ADTProcess -FilePath $appFiles.Bootstrapper -ArgumentList '-x -m' -WindowStyle Hidden -SuccessExitCodes 0, 3010
-    }
+    Start-ADTMsiProcess -Action Uninstall -FilePath $appFiles.OpticsMsi
+}
 
-    Get-AppxPackage -Name 'MSTeams' -AllUsers -ErrorAction SilentlyContinue | Remove-AppxPackage -AllUsers -ErrorAction SilentlyContinue
+function Repair-CylanceProtect
+{
+    [CmdletBinding()]
+    param()
+
+    $tokenArguments = @(
+        "PIDKEY=$cylanceInstallToken",
+        "INSTALLTOKEN=$cylanceInstallToken",
+        "REGISTRATION_TOKEN=$cylanceInstallToken"
+    )
+
+    Start-ADTMsiProcess -Action Repair -FilePath $appFiles.ProtectMsi -AdditionalArgumentList $tokenArguments
+}
+
+function Repair-CylanceOptics
+{
+    [CmdletBinding()]
+    param()
+
+    Start-ADTMsiProcess -Action Repair -FilePath $appFiles.OpticsMsi
 }
 
 function Install-ADTDeployment
@@ -264,12 +207,12 @@ function Install-ADTDeployment
     ##================================================
     $adtSession.InstallPhase = "Pre-$($adtSession.DeploymentType)"
 
-    ## Show Welcome Message, ask the user to close Teams if running, and only force closure after the countdown expires.
+    ## Show Welcome Message, and close configured processes only if any are defined.
     $saiwParams = @{
         CheckDiskSpace = $true
         PersistPrompt = $true
-        Title = 'Microsoft Teams Upgrade'
-        Subtitle = 'Microsoft Teams is being installed machine-wide. Please save your work and close Teams within 5 minutes, or it will be closed automatically.'
+        Title = 'Cylance Agent Install'
+        Subtitle = 'CylancePROTECT will be installed first, then CylanceOPTICS as a dependent component.'
     }
     if ($adtSession.AppProcessesToClose.Count -gt 0)
     {
@@ -290,10 +233,11 @@ function Install-ADTDeployment
     ##================================================
     $adtSession.InstallPhase = $adtSession.DeploymentType
 
-    ## Microsoft guidance recommends removing classic per-user Teams before deploying new Teams machine-wide.
-    Remove-ClassicTeamsPerUserInstallations
-    Remove-ClassicTeamsMachineWideInstaller
-    Install-NewTeamsMachineWide
+    Test-RequiredInstallerFiles
+
+    ## CylanceOPTICS depends on CylancePROTECT, so enforce installation order.
+    Install-CylanceProtect
+    Install-CylanceOptics
 
     ## <Perform Installation tasks here>
 
@@ -320,12 +264,12 @@ function Uninstall-ADTDeployment
     ##================================================
     $adtSession.InstallPhase = "Pre-$($adtSession.DeploymentType)"
 
-    ## Show Welcome Message, ask the user to close Teams if running, and only force closure after the countdown expires.
+    ## Show Welcome Message, and close configured processes only if any are defined.
     $saiwParams = @{
         CheckDiskSpace = $true
         PersistPrompt = $true
-        Title = 'Microsoft Teams Uninstall'
-        Subtitle = 'Microsoft Teams is being uninstalled. Please save your work and close Teams within 5 minutes, or it will be closed automatically.'
+        Title = 'Cylance Agent Uninstall'
+        Subtitle = 'CylanceOPTICS will be removed first, followed by CylancePROTECT.'
     }
     if ($adtSession.AppProcessesToClose.Count -gt 0)
     {
@@ -346,9 +290,11 @@ function Uninstall-ADTDeployment
     ##================================================
     $adtSession.InstallPhase = $adtSession.DeploymentType
 
-    Uninstall-NewTeamsMachineWide
-    Remove-ClassicTeamsPerUserInstallations
-    Remove-ClassicTeamsMachineWideInstaller
+    Test-RequiredInstallerFiles
+
+    ## Remove dependent component first, then the base agent.
+    Uninstall-CylanceOptics
+    Uninstall-CylanceProtect
 
     ## <Perform Uninstallation tasks here>
 
@@ -373,12 +319,12 @@ function Repair-ADTDeployment
     ##================================================
     $adtSession.InstallPhase = "Pre-$($adtSession.DeploymentType)"
 
-    ## Show Welcome Message, ask the user to close Teams if running, and only force closure after the countdown expires.
+    ## Show Welcome Message, and close configured processes only if any are defined.
     $saiwParams = @{
         CheckDiskSpace = $true
         PersistPrompt = $true
-        Title = 'Microsoft Teams Repair'
-        Subtitle = 'Microsoft Teams is being repaired. Please save your work and close Teams within 5 minutes, or it will be closed automatically.'
+        Title = 'Cylance Agent Repair'
+        Subtitle = 'CylancePROTECT will be repaired first, then CylanceOPTICS.'
     }
     if ($adtSession.AppProcessesToClose.Count -gt 0)
     {
@@ -399,9 +345,11 @@ function Repair-ADTDeployment
     ##================================================
     $adtSession.InstallPhase = $adtSession.DeploymentType
 
-    Remove-ClassicTeamsPerUserInstallations
-    Remove-ClassicTeamsMachineWideInstaller
-    Install-NewTeamsMachineWide
+    Test-RequiredInstallerFiles
+
+    ## Keep dependency order during repair as well.
+    Repair-CylanceProtect
+    Repair-CylanceOptics
 
     ## <Perform Repair tasks here>
 
