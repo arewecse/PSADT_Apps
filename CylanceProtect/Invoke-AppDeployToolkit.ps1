@@ -89,7 +89,7 @@ param
 $adtSession = @{
     # App variables.
     AppVendor = 'BlackBerry'
-    AppName = 'CylancePROTECT + CylanceOPTICS'
+    AppName = 'CylancePROTECT'
     AppVersion = '1.0.0'
     AppArch = 'x64'
     AppLang = 'EN'
@@ -103,8 +103,8 @@ $adtSession = @{
     RequireAdmin = $true
 
     # Install Titles (Only set here to override defaults set by the toolkit).
-    InstallName = 'CylancePROTECT + CylanceOPTICS'
-    InstallTitle = 'Cylance Agent Installation'
+    InstallName = 'CylancePROTECT'
+    InstallTitle = 'CylancePROTECT Installation'
 
     # Script variables.
     DeployAppScriptFriendlyName = $MyInvocation.MyCommand.Name
@@ -114,7 +114,6 @@ $adtSession = @{
 
 $appFiles = @{
     ProtectMsi = Join-Path -Path $PSScriptRoot -ChildPath 'Files\CylanceProtect_x64.msi'
-    OpticsMsi = Join-Path -Path $PSScriptRoot -ChildPath 'Files\CylanceOptics_x64.msi'
 }
 
 ## Installation token supplied for CylancePROTECT registration.
@@ -126,7 +125,7 @@ function Test-RequiredInstallerFiles
     [CmdletBinding()]
     param()
 
-    foreach ($requiredFile in @('ProtectMsi', 'OpticsMsi'))
+    foreach ($requiredFile in @('ProtectMsi'))
     {
         if (!(Test-Path -LiteralPath $appFiles[$requiredFile] -PathType Leaf))
         {
@@ -143,21 +142,6 @@ function Install-CylanceProtect
     Start-ADTMsiProcess -Action Install -FilePath $appFiles.ProtectMsi -AdditionalArgumentList $cylanceProtectArguments
 }
 
-function Install-CylanceOptics
-{
-    [CmdletBinding()]
-    param()
-
-    # Optics depends on a present Protect agent.
-    $protectInstalled = Get-ADTApplication -Name 'CylancePROTECT' -ErrorAction SilentlyContinue
-    if (!$protectInstalled)
-    {
-        throw 'CylancePROTECT must be installed before CylanceOPTICS can be installed.'
-    }
-
-    Start-ADTMsiProcess -Action Install -FilePath $appFiles.OpticsMsi
-}
-
 function Uninstall-CylanceProtect
 {
     [CmdletBinding()]
@@ -166,35 +150,12 @@ function Uninstall-CylanceProtect
     Start-ADTMsiProcess -Action Uninstall -FilePath $appFiles.ProtectMsi
 }
 
-function Uninstall-CylanceOptics
-{
-    [CmdletBinding()]
-    param()
-
-    Start-ADTMsiProcess -Action Uninstall -FilePath $appFiles.OpticsMsi
-}
-
 function Repair-CylanceProtect
 {
     [CmdletBinding()]
     param()
 
     Start-ADTMsiProcess -Action Repair -FilePath $appFiles.ProtectMsi -AdditionalArgumentList $cylanceProtectArguments
-}
-
-function Repair-CylanceOptics
-{
-    [CmdletBinding()]
-    param()
-
-    # Repair should only run when Protect is still present.
-    $protectInstalled = Get-ADTApplication -Name 'CylancePROTECT' -ErrorAction SilentlyContinue
-    if (!$protectInstalled)
-    {
-        throw 'CylancePROTECT must be installed before CylanceOPTICS can be repaired.'
-    }
-
-    Start-ADTMsiProcess -Action Repair -FilePath $appFiles.OpticsMsi
 }
 
 function Install-ADTDeployment
@@ -213,8 +174,8 @@ function Install-ADTDeployment
     $saiwParams = @{
         CheckDiskSpace = $true
         PersistPrompt = $true
-        Title = 'Cylance Agent Install'
-        Subtitle = 'CylancePROTECT will be installed first, then CylanceOPTICS as a dependent component.'
+        Title = 'CylancePROTECT Install'
+        Subtitle = 'CylancePROTECT is being installed.'
     }
     if ($adtSession.AppProcessesToClose.Count -gt 0)
     {
@@ -237,9 +198,7 @@ function Install-ADTDeployment
 
     Test-RequiredInstallerFiles
 
-    ## CylanceOPTICS depends on CylancePROTECT, so enforce installation order.
     Install-CylanceProtect
-    Install-CylanceOptics
 
     ## <Perform Installation tasks here>
 
@@ -270,8 +229,8 @@ function Uninstall-ADTDeployment
     $saiwParams = @{
         CheckDiskSpace = $true
         PersistPrompt = $true
-        Title = 'Cylance Agent Uninstall'
-        Subtitle = 'CylanceOPTICS will be removed first, followed by CylancePROTECT.'
+        Title = 'CylancePROTECT Uninstall'
+        Subtitle = 'CylancePROTECT is being removed.'
     }
     if ($adtSession.AppProcessesToClose.Count -gt 0)
     {
@@ -294,8 +253,6 @@ function Uninstall-ADTDeployment
 
     Test-RequiredInstallerFiles
 
-    ## Remove dependent component first, then the base agent.
-    Uninstall-CylanceOptics
     Uninstall-CylanceProtect
 
     ## <Perform Uninstallation tasks here>
@@ -325,8 +282,8 @@ function Repair-ADTDeployment
     $saiwParams = @{
         CheckDiskSpace = $true
         PersistPrompt = $true
-        Title = 'Cylance Agent Repair'
-        Subtitle = 'CylancePROTECT will be repaired first, then CylanceOPTICS.'
+        Title = 'CylancePROTECT Repair'
+        Subtitle = 'CylancePROTECT is being repaired.'
     }
     if ($adtSession.AppProcessesToClose.Count -gt 0)
     {
@@ -349,9 +306,7 @@ function Repair-ADTDeployment
 
     Test-RequiredInstallerFiles
 
-    ## Keep dependency order during repair as well.
     Repair-CylanceProtect
-    Repair-CylanceOptics
 
     ## <Perform Repair tasks here>
 
