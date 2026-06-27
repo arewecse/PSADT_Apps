@@ -1,6 +1,6 @@
 param(
-    [string]$MinimumVersion = '',
-    [bool]$EnforceMinimumVersion = $false
+    [string]$MinimumVersion = '3.4.1001.21',
+    [bool]$EnforceMinimumVersion = $true
 )
 
 $ErrorActionPreference = 'Stop'
