@@ -88,9 +88,9 @@ param
 # By setting the "AppName" property, Zero-Config MSI will be disabled.
 $adtSession = @{
     # App variables.
-    AppVendor = 'BlackBerry'
+    AppVendor = 'Arctic Wolf Networks'
     AppName = 'CylancePROTECT + CylanceOPTICS'
-    AppVersion = '1.0.0'
+    AppVersion = '3.5.1000.7405'
     AppArch = 'x64'
     AppLang = 'EN'
     AppRevision = '01'

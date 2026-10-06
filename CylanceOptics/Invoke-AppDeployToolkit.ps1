@@ -90,7 +90,7 @@ $adtSession = @{
     # App variables.
     AppVendor = 'BlackBerry'
     AppName = 'CylanceOPTICS'
-    AppVersion = '1.0.0'
+    AppVersion = '3.5.7405.0'
     AppArch = 'x64'
     AppLang = 'EN'
     AppRevision = '01'

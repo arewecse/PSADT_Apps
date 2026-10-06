@@ -80,7 +80,7 @@ try {
     }
 
     Write-Output "Detected: $($protectEntry.DisplayName) [$($protectEntry.DisplayVersion)] + $($opticsEntry.DisplayName) [$($opticsEntry.DisplayVersion)]"
-    exit 1
+    exit 0
 }
 catch {
     exit 1
