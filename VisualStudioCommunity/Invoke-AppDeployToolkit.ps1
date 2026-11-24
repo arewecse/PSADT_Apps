@@ -115,8 +115,8 @@ $adtSession = @{
 }
 
 $appFiles = @{
-    # Visual Studio Community 2026 bootstrapper (vs_community.exe). It downloads the product from Microsoft during the install.
-    Setup = Join-Path -Path $PSScriptRoot -ChildPath 'Files\Microsoft.VisualStudio.Community.18.11.2.X64.exe'
+    # Visual Studio Community 2026 bootstrapper from Microsoft. It downloads the product from Microsoft during the install.
+    Setup = Join-Path -Path $PSScriptRoot -ChildPath 'Files\vs_community.exe'
 }
 
 ## Workloads delivered by this package. Keep this list in sync with RequiredWorkloads in DetectionScripts\Detect-VisualStudioCommunity-*.ps1.
@@ -145,9 +145,12 @@ function Test-RequiredInstallerFiles
     [CmdletBinding()]
     param()
 
-    if (!(Test-Path -LiteralPath $appFiles.Setup -PathType Leaf))
+    foreach ($requiredFile in @('Setup'))
     {
-        throw "Required installer file is missing: $($appFiles.Setup)"
+        if (!(Test-Path -LiteralPath $appFiles[$requiredFile] -PathType Leaf))
+        {
+            throw "Required installer file is missing: $($appFiles[$requiredFile])"
+        }
     }
 }
 
@@ -230,12 +233,6 @@ function Uninstall-VisualStudio
         Write-ADTLogEntry -Message "Uninstalling Visual Studio Community 2026 from [$installPath]."
         Start-ADTProcess -FilePath $vsInstallerExe -ArgumentList "uninstall --installPath `"$installPath`" $vsSilentArguments" -WaitForChildProcesses -WindowStyle Hidden
     }
-
-    $remainingPaths = @(Get-VisualStudioInstallPath)
-    if ($remainingPaths)
-    {
-        throw "Visual Studio Community 2026 is still installed at [$($remainingPaths -join '], [')] after the uninstall."
-    }
 }
 
 function Repair-VisualStudio
@@ -275,8 +272,8 @@ function Install-ADTDeployment
     $saiwParams = @{
         CheckDiskSpace = $true
         PersistPrompt = $true
-        Title = 'Visual Studio Community 2026 Installation'
-        Subtitle = 'Visual Studio Community 2026 is being installed. Please save your work and close Visual Studio within 5 minutes, or it will be closed automatically.'
+        Title = 'Visual Studio Community 2026 Upgrade'
+        Subtitle = 'Visual Studio Community 2026 is being upgraded. Please save your work and close Visual Studio within 5 minutes, or it will be closed automatically.'
     }
     if ($adtSession.AppProcessesToClose.Count -gt 0)
     {
@@ -370,6 +367,11 @@ function Uninstall-ADTDeployment
     $adtSession.InstallPhase = "Post-$($adtSession.DeploymentType)"
 
     ## <Perform Post-Uninstallation tasks here>
+
+    if (Get-VisualStudioInstallPath)
+    {
+        Write-ADTLogEntry -Message 'Visual Studio Community 2026 is still registered as installed. Manual cleanup may be required.' -Severity 2
+    }
 }
 
 function Repair-ADTDeployment
