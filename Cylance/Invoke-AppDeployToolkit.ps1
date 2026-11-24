@@ -220,7 +220,6 @@ function Install-ADTDeployment
     {
         $saiwParams.Add('CloseProcesses', $adtSession.AppProcessesToClose)
         $saiwParams.Add('ForceCloseProcessesCountdown', 300)
-        $saiwParams.Add('BlockExecution', $true)
     }
     Show-ADTInstallationWelcome @saiwParams
 
@@ -277,7 +276,6 @@ function Uninstall-ADTDeployment
     {
         $saiwParams.Add('CloseProcesses', $adtSession.AppProcessesToClose)
         $saiwParams.Add('ForceCloseProcessesCountdown', 300)
-        $saiwParams.Add('BlockExecution', $true)
     }
     Show-ADTInstallationWelcome @saiwParams
 
@@ -332,7 +330,6 @@ function Repair-ADTDeployment
     {
         $saiwParams.Add('CloseProcesses', $adtSession.AppProcessesToClose)
         $saiwParams.Add('ForceCloseProcessesCountdown', 300)
-        $saiwParams.Add('BlockExecution', $true)
     }
     Show-ADTInstallationWelcome @saiwParams
 

@@ -1,7 +1,7 @@
 param(
-    [string]$MinimumProtectVersion = '',
-    [string]$MinimumOpticsVersion = '',
-    [bool]$EnforceMinimumVersion = $false
+    [string]$MinimumProtectVersion = '3.5.1000.7405',
+    [string]$MinimumOpticsVersion = '3.5.7405.0',
+    [bool]$EnforceMinimumVersion = $true
 )
 
 $ErrorActionPreference = 'Stop'

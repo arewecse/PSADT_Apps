@@ -1,5 +1,5 @@
 param(
-    [string]$MinimumVersion = '3.4.1001.21',
+    [string]$MinimumVersion = '3.5.1000.7405',
     [bool]$EnforceMinimumVersion = $true
 )
 
